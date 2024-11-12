@@ -1,6 +1,12 @@
 ##### Classification using Nearest Neighbors --------------------
 # Prasad Chaskar
 
+# Path to the scripts
+library("rstudioapi")
+
+# Set working directory
+setwd(dirname(getActiveDocumentContext()$path))  # Set the working directory to the parent directory of the active document
+
 # Load required libraries
 library(tidymodels)
 library(kknn)
@@ -17,8 +23,13 @@ wbcd <- wbcd %>%
 
 # Recode the 'diagnosis' column as a factor
 wbcd <- wbcd %>%
-  mutate(diagnosis = factor(diagnosis, levels = c("B", "M"),
-                            labels = c("Benign", "Malignant")))
+  mutate(diagnosis = factor(
+    diagnosis,
+    levels = c("B", "M"),
+    labels = c("Benign", "Malignant")
+  ))
+
+table(wbcd$diagnosis)
 
 # Step 2: Split the Data
 set.seed(123) # For reproducibility
@@ -39,6 +50,7 @@ rec <- recipe(diagnosis ~ ., data = train_data) %>%
   step_normalize(all_predictors())  # Normalize all predictors (numeric features)
 
 # Step 4: Define the Model
+# parsnip_addin() for automatic parameter generation
 knn_spec <- nearest_neighbor(neighbors = tune()) %>%  # Tune neighbors (k)
   set_engine("kknn") %>%
   set_mode("classification")
@@ -50,7 +62,7 @@ knn_workflow <- workflow() %>%
 
 # Step 6: Cross-Validation Setup (using validation set)
 set.seed(123)
-cv_folds <- vfold_cv(validation_data, v = 5, strata = diagnosis)
+cv_folds <- vfold_cv(validation_data, v = 10, strata = diagnosis)
 
 # Step 7: Hyperparameter Tuning
 # Define grid for neighbors (k)
@@ -109,7 +121,8 @@ print(conf_matrix_yardstick)
 # Step 14: MCC (Matthews Correlation Coefficient)
 # ---------------------------
 # Calculate MCC for the predictions
-manual_conf_matrix <- table(predictions_with_labels$.pred_class, predictions_with_labels$diagnosis)
+manual_conf_matrix <- table(predictions_with_labels$.pred_class,
+                            predictions_with_labels$diagnosis)
 
 TP <- manual_conf_matrix[2, 2]  # True Positive
 TN <- manual_conf_matrix[1, 1]  # True Negative
@@ -123,10 +136,16 @@ cat("Matthews Correlation Coefficient (MCC): ", mcc_value, "\n")
 # Step 15: ROC Curve
 # ---------------------------
 # Use pROC for ROC curve and AUC calculation
-roc_curve <- roc(predictions_with_labels$diagnosis, as.numeric(predictions_with_labels$.pred_class) - 1)
+roc_curve <- roc(
+  predictions_with_labels$diagnosis,
+  as.numeric(predictions_with_labels$.pred_class) - 1
+)
 
 # Plot ROC curve
-plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+plot(roc_curve,
+     main = "ROC Curve",
+     col = "blue",
+     lwd = 2)
 
 # AUC Score
 cat("AUC: ", auc(roc_curve), "\n")
@@ -134,16 +153,23 @@ cat("AUC: ", auc(roc_curve), "\n")
 # Step 16: Precision-Recall Curve
 # ---------------------------
 # For Precision-Recall curve, we use pROC
-pr_curve <- roc(predictions_with_labels$diagnosis, 
-                as.numeric(predictions_with_labels$.pred_class) - 1, 
-                plot = TRUE, print.auc = TRUE, col = "green", 
-                main = "Precision-Recall Curve")
+pr_curve <- roc(
+  predictions_with_labels$diagnosis,
+  as.numeric(predictions_with_labels$.pred_class) - 1,
+  plot = TRUE,
+  print.auc = TRUE,
+  col = "green",
+  main = "Precision-Recall Curve"
+)
 
 # load the "gmodels" library
 library(gmodels)
 
 # Create the cross tabulation of predicted vs. actual
-CrossTable(x = predictions_with_labels$diagnosis, y = predictions_with_labels$.pred_class,
-           prop.chisq = FALSE)
+CrossTable(
+  x = predictions_with_labels$diagnosis,
+  y = predictions_with_labels$.pred_class,
+  prop.chisq = FALSE
+)
 
 # End of script
